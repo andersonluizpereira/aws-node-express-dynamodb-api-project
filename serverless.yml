@@ -1,31 +1,56 @@
 service: aws-node-express-dynamodb-api-project
 frameworkVersion: '3'
 
-custom:
-  tableName: 'users-table-${sls:stage}'
-
 provider:
   name: aws
-  runtime: nodejs14.x
-  iam:
-    role:
-      statements:
-        - Effect: Allow
-          Action:
-            - dynamodb:Query
-            - dynamodb:Scan
-            - dynamodb:GetItem
-            - dynamodb:PutItem
-            - dynamodb:UpdateItem
-            - dynamodb:DeleteItem
-          Resource:
-            - Fn::GetAtt: [ UsersTable, Arn ]
+  runtime: nodejs16.x
+  stage: dev
+  region: us-east-1
   environment:
-    USERS_TABLE: 'users'
+    HEROES_TABLE: Heroes
+    SKILLS_TABLE: Skills
+    LOCALSTACK_HOST: ${env:LOCALSTACK_HOST, "localhost"}
+    DYNAMODB_PORT: ${env:DYNAMODB_PORT, "4566"}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:Scan
+        - dynamodb:Query
+        - dynamodb:DescribeTable
+      Resource:
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.HEROES_TABLE}"
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.SKILLS_TABLE}"
+
+package:
+  excludeDevDependencies: true
+  individually: true
 
 plugins:
-  - serverless-offline	
   - serverless-dynamodb-local
+  - serverless-offline
+
+custom:
+  dynamodb:
+    stages:
+      - ${self:provider.stage}
+    start:
+      host: ${self:provider.environment.LOCALSTACK_HOST}
+      port: ${self:provider.environment.DYNAMODB_PORT}
+      migrate: true
+      noStart: true
+      seed: true
+    seed:
+      heroes:
+        sources:
+          - table: ${self:provider.environment.HEROES_TABLE}
+            sources: [ './seed/heroes.json' ]
+      skills:
+        sources:
+          - table: ${self:provider.environment.SKILLS_TABLE}
+            sources: [ './seed/skills.json' ]
+
 
 functions:
   api:
@@ -35,14 +60,29 @@ functions:
 
 resources:
   Resources:
-    UsersTable:
+    Heroes:
       Type: AWS::DynamoDB::Table
       Properties:
+        TableName: ${self:provider.environment.HEROES_TABLE}
         AttributeDefinitions:
-          - AttributeName: userId
+          - AttributeName: id
             AttributeType: S
         KeySchema:
-          - AttributeName: userId
+          - AttributeName: id
             KeyType: HASH
-        BillingMode: PAY_PER_REQUEST
-        TableName: ${self:custom.tableName}
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+    Skills:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.SKILLS_TABLE}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
