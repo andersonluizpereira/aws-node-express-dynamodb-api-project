@@ -1,31 +1,20 @@
 const AWS = require("aws-sdk");
 const express = require("express");
 const serverless = require("serverless-http");
+const setupDynamoDBClient = require('./src/core/util/setupDynamoDB');
+setupDynamoDBClient();
+
+const HeroFactory = require('./src/core/factories/heroFactory');
 
 const app = express();
-
-const USERS_TABLE = process.env.USERS_TABLE || "Heroes";
-const dynamoDbClientParams = {};
-if (process.env.IS_OFFLINE) {
-  dynamoDbClientParams.region = process.env.LOCALSTACK_HOST || 'localhost'
-  dynamoDbClientParams.endpoint = `http://${process.env.LOCALSTACK_HOST}:${process.env.DYNAMODB_PORT}` || 'http://localhost:4566' 
-  dynamoDbClientParams.accessKeyId = 'AKIANAQ2VOMFQBNO7KXE',  // needed if you don't have aws credentials at all in env
-  dynamoDbClientParams.secretAccessKey = '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' // needed if you don't have aws credentials at all in env
-}
-const dynamoDbClient = new AWS.DynamoDB.DocumentClient(dynamoDbClientParams);
 
 app.use(express.json());
 
 app.get("/users/:id", async function (req, res) {
-  const params = {
-    TableName: USERS_TABLE,
-    Key: {
-      id: req.params.id,
-    },
-  };
-
+  console.log("GET /users/:id", req.params.id);
+  let hero = await HeroFactory.createInstance()
   try {
-    const { Item } = await dynamoDbClient.get(params).promise();
+    const Item = await hero.findOne(req.params.id);
     if (Item) {
       res.json({ Item });
     } else {
@@ -40,12 +29,9 @@ app.get("/users/:id", async function (req, res) {
 });
 
 app.get("/users", async function (req, res) {
-  const params = {
-    TableName: USERS_TABLE
-  };
-
+  let hero = await HeroFactory.createInstance()
   try {
-    const  Item  = await dynamoDbClient.scan(params).promise();
+    const  Item  = await hero.findAll();
     if (Item) {
       res.json({ Item });
     } else {
@@ -60,6 +46,7 @@ app.get("/users", async function (req, res) {
 });
 
 app.post("/users", async function (req, res) {
+  await HeroFactory.createInstance();
   const { id ,name, skills } = req.body;
 
   if (typeof name !== "string") {
@@ -77,7 +64,7 @@ app.post("/users", async function (req, res) {
   };
 
   try {
-    await dynamoDbClient.put(params).promise();
+    await HeroFactory.findAll();
     res.json({ id, name, skills });
   } catch (error) {
     console.log(error);
