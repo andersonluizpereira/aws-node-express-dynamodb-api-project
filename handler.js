@@ -46,26 +46,19 @@ app.get("/users", async function (req, res) {
 });
 
 app.post("/users", async function (req, res) {
-  await HeroFactory.createInstance();
-  const { id ,name, skills } = req.body;
+  let hero = await HeroFactory.createInstance()
+  const { name, skills } = req.body;
 
   if (typeof name !== "string") {
     res.status(400).json({ error: '"name" must be a string' });
   } else if (!Array.isArray(skills)) {
     res.status(400).json({ error: '"skills" must be an array' });
   }
-  const params = {
-    TableName: USERS_TABLE,
-    Item: {
-      id,
-      name,
-      skills
-    },
-  };
+ 
 
   try {
-    await HeroFactory.findAll();
-    res.json({ id, name, skills });
+    await hero.create({ name, skills });
+    res.json({ name, skills });
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: "Could not create user" });
