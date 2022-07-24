@@ -60,28 +60,25 @@ app.get("/users", async function (req, res) {
 });
 
 app.post("/users", async function (req, res) {
-  console.log("get user post");
-  const { nome, poder, skills } = req.body;
-  if (typeof nome !== "string") {
-    res.status(400).json({ error: '"nome" must be a string' });
-  } else if (typeof poder !== "string") {
-    res.status(400).json({ error: '"poder" must be a string' });
+  const { id ,name, skills } = req.body;
+
+  if (typeof name !== "string") {
+    res.status(400).json({ error: '"name" must be a string' });
   } else if (!Array.isArray(skills)) {
     res.status(400).json({ error: '"skills" must be an array' });
   }
-
   const params = {
     TableName: USERS_TABLE,
     Item: {
-      nome,
-      poder,
+      id,
+      name,
       skills
     },
   };
 
   try {
     await dynamoDbClient.put(params).promise();
-    res.json({ nome, poder });
+    res.json({ id, name, skills });
   } catch (error) {
     console.log(error);
     res.status(500).json({ error: "Could not create user" });
